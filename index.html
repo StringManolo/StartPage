@@ -6,7 +6,6 @@
     <title>StartPage - Navegación Rápida</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-    <!-- Trigger ghpages -->
     <style>
         :root {
             --bg-color: #0f172a;
@@ -1221,7 +1220,7 @@
             isEditingLink: false,
             sortableInstances: [],
             currentColorTarget: null,
-            colorTargetType: null, // 'body', 'header', 'category', 'link', 'surface', 'text'
+            colorTargetType: null, // 'body', 'header', 'category', 'link', 'surface', 'text', 'global'
             originalColors: {}
         };
         
@@ -1577,15 +1576,15 @@
                 } else if (target.closest('.header')) {
                     element = document.querySelector('.header');
                     elementType = 'header';
+                } else if (target.closest('body')) {
+                    element = document.body;
+                    elementType = 'global';
                 } else if (target.closest('.search-container')) {
                     element = document.querySelector('.search-container');
                     elementType = 'search';
                 } else if (target.closest('.footer')) {
                     element = document.querySelector('.footer');
                     elementType = 'footer';
-                } else if (target.closest('body')) {
-                    element = document.body;
-                    elementType = 'body';
                 }
                 
                 if (!element) {
@@ -1637,7 +1636,7 @@
                         showNotification('Color de enlace restablecido', 'success');
                     }
                 }
-            } else if (elementType === 'body') {
+            } else if (elementType === 'global') {
                 // Restaurar colores originales del body/globales
                 if (state.data.settings.backgroundColor !== initialData.settings.backgroundColor) {
                     state.data.settings.backgroundColor = initialData.settings.backgroundColor;
@@ -1645,6 +1644,11 @@
                     document.body.style.backgroundColor = initialData.settings.backgroundColor;
                     saveData();
                     showNotification('Color de fondo restablecido', 'success');
+                }
+                if (state.data.settings.primaryColor !== initialData.settings.primaryColor) {
+                    state.data.settings.primaryColor = initialData.settings.primaryColor;
+                    document.documentElement.style.setProperty('--primary-color', initialData.settings.primaryColor);
+                    saveData();
                 }
             } else if (elementType === 'header') {
                 if (state.data.settings.headerColor !== initialData.settings.headerColor) {
@@ -1676,10 +1680,12 @@
                 const category = state.data.categories.find(c => c.id === categoryId);
                 const link = category?.links.find(l => l.id === elementId);
                 title = `Color de enlace: ${link?.name || ''}`;
-            } else if (elementType === 'body') {
-                title = 'Color de fondo';
+            } else if (elementType === 'global') {
+                title = 'Colores globales';
             } else if (elementType === 'header') {
                 title = 'Color de cabecera';
+            } else if (elementType === 'footer') {
+                title = 'Color de pie de página';
             }
             colorPickerTitle.textContent = title;
             
@@ -1693,6 +1699,10 @@
                 const category = state.data.categories.find(c => c.id === categoryId);
                 const link = category?.links.find(l => l.id === elementId);
                 currentColor = link?.customColor || getComputedStyle(element).backgroundColor;
+            } else if (elementType === 'global') {
+                currentColor = state.data.settings.backgroundColor;
+            } else if (elementType === 'header') {
+                currentColor = state.data.settings.headerColor;
             } else {
                 currentColor = getComputedStyle(element).backgroundColor;
             }
@@ -1725,7 +1735,7 @@
             return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
         }
         
-        // Aplicar color
+        // Aplicar color (CORREGIDA para manejar variables CSS)
         function applyColor(color) {
             if (!state.currentColorTarget || !state.colorTargetType) return;
             
@@ -1734,7 +1744,6 @@
             if (state.colorTargetType === 'category') {
                 const categoryId = state.currentColorTarget.dataset.categoryId;
                 const category = state.data.categories.find(c => c.id === categoryId);
-                
                 if (category) {
                     category.customColor = hexColor;
                     state.currentColorTarget.style.backgroundColor = hexColor;
@@ -1745,7 +1754,6 @@
                 const linkId = state.currentColorTarget.dataset.linkId;
                 const categoryId = state.currentColorTarget.dataset.categoryId;
                 const category = state.data.categories.find(c => c.id === categoryId);
-                
                 if (category) {
                     const link = category.links.find(l => l.id === linkId);
                     if (link) {
@@ -1755,22 +1763,31 @@
                         showNotification('Color de enlace actualizado', 'success');
                     }
                 }
-            } else if (state.colorTargetType === 'body') {
+            } else if (state.colorTargetType === 'global') {
+                // Para body/global settings - SOLO FONDO
                 state.data.settings.backgroundColor = hexColor;
                 document.documentElement.style.setProperty('--bg-color', hexColor);
                 document.body.style.backgroundColor = hexColor;
                 saveData();
                 showNotification('Color de fondo actualizado', 'success');
             } else if (state.colorTargetType === 'header') {
+                // Para la cabecera
                 state.data.settings.headerColor = hexColor;
                 document.documentElement.style.setProperty('--header-color', hexColor);
                 saveData();
                 showNotification('Color de cabecera actualizado', 'success');
+            } else if (state.colorTargetType === 'footer') {
+                // Para el footer
+                state.currentColorTarget.style.backgroundColor = hexColor;
+                showNotification('Color de pie de página actualizado', 'success');
             } else {
-                // Para otros elementos, aplicar estilo inline
+                // Para otros elementos genéricos
                 state.currentColorTarget.style.backgroundColor = hexColor;
                 showNotification('Color aplicado', 'success');
             }
+            
+            // Cerrar modal después de aplicar
+            colorPickerModal.style.display = 'none';
         }
         
         // Configurar event listeners
@@ -1821,17 +1838,20 @@
             cancelLinkBtn.addEventListener('click', () => linkModal.style.display = 'none');
             saveLinkBtn.addEventListener('click', saveLink);
             
-            // Modales color picker
+            // Modales color picker (CORREGIDO)
             closeColorPicker.addEventListener('click', () => colorPickerModal.style.display = 'none');
             cancelColorBtn.addEventListener('click', () => colorPickerModal.style.display = 'none');
+            
             resetColorBtn.addEventListener('click', () => {
-                resetElementColor(state.currentColorTarget, state.colorTargetType, state.currentColorTarget?.dataset?.categoryId || state.currentColorTarget?.dataset?.linkId);
+                resetElementColor(state.currentColorTarget, state.colorTargetType, 
+                    state.colorTargetType === 'category' ? state.currentColorTarget.dataset.categoryId : 
+                    state.colorTargetType === 'link' ? state.currentColorTarget.dataset.linkId : null);
                 colorPickerModal.style.display = 'none';
             });
             
             applyColorBtn.addEventListener('click', () => {
                 applyColor(colorHex.value);
-                colorPickerModal.style.display = 'none';
+                // El cierre del modal ahora está dentro de applyColor()
             });
             
             // Color picker interactivo
