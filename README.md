@@ -2,6 +2,9 @@
 
 **StartPage** es una página de inicio minimalista y personalizable que permite acceder rápidamente a tus enlaces favoritos mediante autocompletado. Todos los datos se guardan localmente en tu navegador y puedes exportarlos/importarlos.
 
+![startpage_screenshot](https://github.com/user-attachments/assets/eef084d7-4490-4bbc-9772-2c7b398eb1fc)
+
+
 ## Características
 
 - **Búsqueda con autocompletado**: Encuentra enlaces rápidamente o escribe URLs para navegar directamente.
